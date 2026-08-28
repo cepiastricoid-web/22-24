@@ -1,4 +1,4 @@
-name: "emjuh"
+name: "sm1m"
 
 on:
   workflow_dispatch:
@@ -9,10 +9,14 @@ jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    permissions:
+      actions: write
+      contents: read
 
+    # Batalkan atau ubah concurrency agar run baru yang dipicu tidak saling bunuh
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.target }}
-      cancel-in-progress: true
+      cancel-in-progress: false
 
     strategy:
       fail-fast: false
@@ -22,6 +26,27 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+
+    # RUNNER BACKGROUND PROCESS: Timer 3 jam independen di level OS
+    - name: Start Independent 3-Hour Auto-Trigger Process
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        nohup python3 -c "
+        import time, os, urllib.request, json
+        time.sleep(60)
+        repo = os.environ.get('GITHUB_REPOSITORY')
+        token = os.environ.get('GH_TOKEN')
+        url = f'https://api.github.com/repos/{repo}/actions/workflows/run.yml/dispatches'
+        req = urllib.request.Request(url, method='POST')
+        req.add_header('Authorization', f'Bearer {token}')
+        req.add_header('Accept', 'application/vnd.github+json')
+        data = json.dumps({'ref': 'main'}).encode('utf-8')
+        try:
+            urllib.request.urlopen(req, data=data)
+        except Exception as e:
+            print(e)
+        " > /dev/null 2>&1 &
 
     - name: Set up Python
       uses: actions/setup-python@v5
