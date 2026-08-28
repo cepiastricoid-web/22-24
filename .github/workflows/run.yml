@@ -13,13 +13,14 @@ jobs:
       actions: write
       contents: read
 
-    # Batalkan atau ubah concurrency agar run baru yang dipicu tidak saling bunuh
+    # Menjaga antrean agar run baru tidak langsung mati di detik 14
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.target }}
       cancel-in-progress: false
 
     strategy:
       fail-fast: false
+      max-parallel: 1  # MEMASTIKAN GAK AKAN ADA 2 RUNNER JALAN BARENGAN
       matrix:
         target: ['71', '72']
 
@@ -27,17 +28,17 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # RUNNER BACKGROUND PROCESS: Timer 3 jam independen di level OS
-    - name: Start Independent 3-Hour Auto-Trigger Process
+    # TIMER 5 MENIT (300 DETIK) UNTUK DAFTARKAN RUN BARU KE ANTREAN
+    - name: Start Independent 5-Minute Auto-Trigger Process
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         nohup python3 -c "
         import time, os, urllib.request, json
-        time.sleep(60)
+        time.sleep(300)
         repo = os.environ.get('GITHUB_REPOSITORY')
         token = os.environ.get('GH_TOKEN')
-        url = f'https://api.github.com/repos/{repo}/actions/workflows/run.yml/dispatches'
+        url = f'https://api.github.com/repos/{repo}/actions/workflows/emjuh.yml/dispatches'
         req = urllib.request.Request(url, method='POST')
         req.add_header('Authorization', f'Bearer {token}')
         req.add_header('Accept', 'application/vnd.github+json')
