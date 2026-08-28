@@ -42,27 +42,49 @@ jobs:
         python -m pip install --upgrade pip
         pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib selenium requests selenium-stealth undetected-chromedriver
 
-    # AUTO-TRIGGER MENGGUNAKAN BASH & CURL (Dijalankan di background)
-    - name: Start Independent 1-Minute Auto-Trigger Process
-      if: matrix.target == '71'
-      env:
-        GH_TOKEN: ${{ secrets.MY_PAT }}
-      run: |
-        (
-          sleep 60
-          curl -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/emjuh.yml/dispatches \
-            -d '{"ref":"main"}'
-        ) &
-
     - name: Download & Extract Files from Google Drive
       env:
         GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FILE_ID }}
         TARGET_ACCOUNT: ${{ matrix.target }}
       run: python download_drive.py
+
+    # TRIGGER DITERAPKAN DI LANGKAH TERAKHIR & DI-RUN OLEH SCRIPT TERPISAH
+    - name: Trigger Next Workflow Run
+      if: matrix.target == '71'
+      env:
+        GH_TOKEN: ${{ secrets.MY_PAT }}
+      run: |
+        node -e "
+        const https = require('https');
+        
+        console.log('[+] Memulai countdown 60 detik...');
+        setTimeout(() => {
+          const repo = process.env.GITHUB_REPOSITORY;
+          // Tembak langsung ke nama file run.yml (bukan emjuh.yml)
+          const options = {
+            hostname: 'api.github.com',
+            path: '/repos/' + repo + '/actions/workflows/run.yml/dispatches',
+            method: 'POST',
+            headers: {
+              'User-Agent': 'Nodejs-Trigger',
+              'Authorization': 'Bearer ' + process.env.GH_TOKEN,
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json'
+            }
+          };
+
+          const req = https.request(options, (res) => {
+            console.log('[ SUCCESS ] Trigger Terkirim! Status:', res.statusCode);
+          });
+
+          req.on('error', (e) => console.error('[ ERROR ] Gagal:', e));
+          req.write(JSON.stringify({ ref: 'main' }));
+          req.end();
+        }, 60000);
+        " &
+        # Simpan PID proses agar step tidak langsung exit dan mematikan timer
+        sleep 62
 
     - name: Run All Subfolder Bots In Parallel
       run: |
