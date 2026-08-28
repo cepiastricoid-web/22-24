@@ -13,7 +13,7 @@ target_env = os.environ.get('TARGET_ACCOUNT')
 if target_env:
     TARGET_SM = [f"{target_env}.zip"]
 else:
-    TARGET_SM = ['71.zip']
+    TARGET_SM = ['71.zip', '72.zip']
 
 def main():
     sa_key_info = os.environ.get('GCP_SA_KEY')
