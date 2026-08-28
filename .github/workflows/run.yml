@@ -13,22 +13,22 @@ jobs:
       actions: write
       contents: read
 
-    # Menjaga antrean agar run baru tidak langsung mati di detik 14
+    # KUNCI UTAMA: Mengunci seluruh Workflow (bukan per matrix target)
+    # Menjamin Workflow #22 pasti antre di belakang #21 tanpa jalan barengan
     concurrency:
-      group: ${{ github.workflow }}-${{ matrix.target }}
+      group: ${{ github.workflow }}
       cancel-in-progress: false
 
     strategy:
       fail-fast: false
-      max-parallel: 1  # MEMASTIKAN GAK AKAN ADA 2 RUNNER JALAN BARENGAN
       matrix:
-        target: ['71', '72']
+        target: ['71', '72'] # Matrix 71 & 72 TETAP JALAN BARENGAN
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # TIMER 5 MENIT (300 DETIK) UNTUK DAFTARKAN RUN BARU KE ANTREAN
+    # TRIGGER 5 MENIT UNTUK NEDAFTARIN WORKFLOW NEXT (#22, #23, dst)
     - name: Start Independent 5-Minute Auto-Trigger Process
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
