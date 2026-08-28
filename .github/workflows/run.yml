@@ -8,7 +8,7 @@ on:
 # Concurrency di level workflow global
 concurrency:
   group: emjuh-workflow-lock
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   run:
