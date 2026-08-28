@@ -5,10 +5,10 @@ on:
   schedule:
     - cron: '5 0,6,12,18 * * *'
 
-# Concurrency di level workflow global
+# Kembalikan ke false agar saat terdaftar TIDAK LANGSUNG MEMBUNUH yang lama
 concurrency:
   group: emjuh-workflow-lock
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -27,8 +27,41 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # TIMER DIUBAH KE 1 MENIT (60 DETIK)
-    - name: Start Independent 1-Minute Auto-Trigger Process
+    # STEP UTAMA: BEGITU STEPS INI JALAN, BARU DI-KILL WORKFLOW SEBELUMNYA
+    - name: Kill Previous Running Workflows
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python3 -c "
+        import os, urllib.request, json
+
+        repo = os.environ.get('GITHUB_REPOSITORY')
+        token = os.environ.get('GH_TOKEN')
+        current_run_id = os.environ.get('GITHUB_RUN_ID')
+
+        url = f'https://api.github.com/repos/{repo}/actions/workflows/emjuh.yml/runs?status=in_progress'
+        req = urllib.request.Request(url)
+        req.add_header('Authorization', f'Bearer {token}')
+        req.add_header('Accept', 'application/vnd.github+json')
+
+        try:
+            res = urllib.request.urlopen(req)
+            data = json.loads(res.read().decode('utf-8'))
+            for run in data.get('workflow_runs', []):
+                run_id = str(run['id'])
+                if run_id != str(current_run_id):
+                    print(f'[!] Membunuh Workflow Run lama ID: {run_id}')
+                    cancel_url = f'https://api.github.com/repos/{repo}/actions/runs/{run_id}/cancel'
+                    cancel_req = urllib.request.Request(cancel_url, method='POST')
+                    cancel_req.add_header('Authorization', f'Bearer {token}')
+                    cancel_req.add_header('Accept', 'application/vnd.github+json')
+                    urllib.request.urlopen(cancel_req)
+        except Exception as e:
+            print(f'Gagal cancel run lama: {e}')
+        "
+
+    # TIMER 5 MENIT UNTUK TRIGGER NEXT WORKFLOW (#61, #62, dst)
+    - name: Start Independent 5-Minute Auto-Trigger Process
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
