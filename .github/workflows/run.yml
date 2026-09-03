@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: ['71', '72']
+        target: ['71', '72', '73']
 
     steps:
     - name: Checkout Repository
